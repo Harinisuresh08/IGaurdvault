@@ -1,0 +1,50 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * { border-color: theme("colors.base.border"); }
+  body {
+    background-color: theme("colors.base.bg");
+    color: #E2E8F0;
+    font-family: theme("fontFamily.sans");
+    -webkit-font-smoothing: antialiased;
+  }
+  html { scroll-behavior: smooth; }
+  ::selection { background: theme("colors.accent.soft"); color: #fff; }
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: theme("colors.base.border"); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: theme("colors.muted.faint"); }
+}
+
+@layer components {
+  .glass {
+    background: rgba(20, 27, 45, 0.6);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(30, 41, 59, 0.6);
+  }
+  .glass-strong {
+    background: rgba(15, 20, 33, 0.85);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(30, 41, 59, 0.8);
+  }
+  .gradient-text {
+    background: linear-gradient(135deg, #00E5FF 0%, #22C55E 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .gradient-accent { background: linear-gradient(135deg, #00E5FF 0%, #0288D1 100%); }
+  .gradient-danger { background: linear-gradient(135deg, #EF4444 0%, #B91C1C 100%); }
+  .gradient-success { background: linear-gradient(135deg, #22C55E 0%, #15803D 100%); }
+  .gradient-warning { background: linear-gradient(135deg, #F59E0B 0%, #B45309 100%); }
+}
+
+@layer utilities {
+  .text-balance { text-wrap: balance; }
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+}
