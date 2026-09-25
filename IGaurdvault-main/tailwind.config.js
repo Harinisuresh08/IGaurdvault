@@ -1,0 +1,78 @@
+/** @type {import('tailwindcss').Config} */
+export default {
+  content: ["./index.html", "./src/**/*.{js,ts,jsx,tsx}"],
+  theme: {
+    extend: {
+      colors: {
+        base: {
+          bg: "#080B14",
+          surface: "#0F1421",
+          card: "#141B2D",
+          elevated: "#1A2336",
+          border: "#1E293B",
+          hover: "#243049",
+        },
+        accent: {
+          DEFAULT: "#00E5FF",
+          soft: "#00E5FF1A",
+          glow: "#00E5FF80",
+          dim: "#00E5FF44",
+        },
+        success: { DEFAULT: "#22C55E", soft: "#22C55E1A" },
+        warning: { DEFAULT: "#F59E0B", soft: "#F59E0B1A" },
+        danger: { DEFAULT: "#EF4444", soft: "#EF44441A" },
+        purple: { DEFAULT: "#8B5CF6", soft: "#8B5CF61A" },
+        muted: { DEFAULT: "#64748B", light: "#94A3B8", faint: "#475569" },
+      },
+      fontFamily: {
+        sans: ["Inter", "system-ui", "sans-serif"],
+        mono: ["JetBrains Mono", "monospace"],
+      },
+      boxShadow: {
+        glow: "0 0 20px #00E5FF33",
+        "glow-md": "0 0 30px #00E5FF44",
+        "glow-lg": "0 0 50px #00E5FF22, 0 0 100px #00E5FF11",
+        "glow-success": "0 0 20px #22C55E33",
+        "glow-danger": "0 0 20px #EF444433",
+        "glow-warning": "0 0 20px #F59E0B33",
+        "glow-purple": "0 0 20px #8B5CF633",
+        "card": "0 4px 24px rgba(0, 0, 0, 0.3), 0 1px 4px rgba(0, 0, 0, 0.2)",
+        "card-hover": "0 8px 40px rgba(0, 0, 0, 0.4), 0 2px 8px rgba(0, 0, 0, 0.3)",
+      },
+      animation: {
+        "pulse-slow": "pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite",
+        "pulse-fast": "pulse 0.8s cubic-bezier(0.4, 0, 0.6, 1) infinite",
+        "fade-in": "fadeIn 0.4s ease-out",
+        "slide-up": "slideUp 0.4s ease-out",
+        "slide-right": "slideRight 0.4s ease-out",
+        "scale-in": "scaleIn 0.3s ease-out",
+        "float": "float 3s ease-in-out infinite",
+        "glow-pulse": "glow-pulse 2s ease-in-out infinite",
+        "scan": "scan 3s linear infinite",
+        "shimmer": "shimmer 1.5s ease-in-out infinite",
+        "rotate-ring": "rotateRing 8s linear infinite",
+        "threat-blink": "threat-blink 1.5s ease-in-out infinite",
+      },
+      keyframes: {
+        fadeIn: { from: { opacity: "0" }, to: { opacity: "1" } },
+        slideUp: { from: { opacity: "0", transform: "translateY(16px)" }, to: { opacity: "1", transform: "translateY(0)" } },
+        slideRight: { from: { opacity: "0", transform: "translateX(-16px)" }, to: { opacity: "1", transform: "translateX(0)" } },
+        scaleIn: { from: { opacity: "0", transform: "scale(0.9)" }, to: { opacity: "1", transform: "scale(1)" } },
+        float: { "0%, 100%": { transform: "translateY(0)" }, "50%": { transform: "translateY(-6px)" } },
+        "glow-pulse": { "0%, 100%": { boxShadow: "0 0 20px rgba(0, 229, 255, 0.2)" }, "50%": { boxShadow: "0 0 40px rgba(0, 229, 255, 0.5), 0 0 80px rgba(0, 229, 255, 0.2)" } },
+        scan: { "0%": { top: "0", opacity: "1" }, "95%": { opacity: "1" }, "100%": { top: "100%", opacity: "0" } },
+        shimmer: { "0%": { backgroundPosition: "-200% 0" }, "100%": { backgroundPosition: "200% 0" } },
+        rotateRing: { from: { transform: "rotate(0deg)" }, to: { transform: "rotate(360deg)" } },
+        "threat-blink": { "0%, 100%": { opacity: "1" }, "50%": { opacity: "0.3" } },
+      },
+      borderRadius: {
+        "2xl": "16px",
+        "3xl": "24px",
+        "4xl": "32px",
+      },
+      backdropBlur: {
+        xs: "4px",
+      },
+    },
+  },
+};
