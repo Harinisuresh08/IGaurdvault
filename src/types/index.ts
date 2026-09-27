@@ -57,6 +57,32 @@ export interface SecurityScore {
   updated_at: string;
 }
 
+export interface ScoreInput {
+  faceMatched?: boolean;
+  faceConfidence?: number;
+  isTrustedLocation?: boolean;
+  isTrustedDevice?: boolean;
+  failedAttempts?: number;
+  hasWeakPasswords?: boolean;
+  hasDuplicatePasswords?: boolean;
+  recentIntruders?: number;
+  backupCompletedDays?: number | null;
+  behaviorAnomaly?: number;
+  hourOfDay?: number;
+  successfulAuths?: number;
+  unknownFaces?: number;
+  unknownLocations?: number;
+  suspiciousLoginTime?: boolean;
+  deviceMotion?: number;
+  trustedNetwork?: boolean;
+  trustedDevice?: boolean;
+  batteryTampering?: boolean;
+  chargingStatus?: string;
+  passwordStrength?: number;
+  vaultItemCount?: number;
+  [key: string]: any;
+}
+
 export interface ScoreFactor {
   key: string;
   label: string;

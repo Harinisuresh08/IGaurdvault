@@ -14,7 +14,19 @@ export async function logSecurityEvent(params: {
   console.log("[Demo Mode] logSecurityEvent", params);
 }
 
-export const logThreatEvent = logSecurityEvent;
+export async function logThreatEvent(params: {
+  user_id: string;
+  type?: EventType;
+  severity?: SecurityEvent["severity"];
+  title: string;
+  description: string;
+  metadata?: Record<string, unknown>;
+  location?: string | null;
+  device_info?: string | null;
+  risk_score?: number | null;
+}): Promise<void> {
+  return logSecurityEvent(params as any);
+}
 
 export async function logIntruderEvent(params: {
   user_id: string;

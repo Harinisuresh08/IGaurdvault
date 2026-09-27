@@ -1,4 +1,4 @@
-import type { SecurityScore, ScoreFactor, RiskLevel, RiskAssessment, RiskAction, AIInsight } from "@/types";
+import type { SecurityScore, ScoreFactor, RiskLevel, RiskAssessment, RiskAction, AIInsight, ScoreInput } from "@/types";
 
 export function riskLevelFromScore(score: number): RiskLevel {
   if (score < 20) return "safe";
@@ -22,38 +22,23 @@ export function riskLabel(level: RiskLevel): string {
   return level.charAt(0).toUpperCase() + level.slice(1) + " Risk";
 }
 
-export const colorForTier = riskColor;
-export const labelForTier = riskLabel;
-export const tierFromScore = riskLevelFromScore;
+export function colorForTier(level: RiskLevel): string {
+  return riskColor(level);
+}
+
+export function labelForTier(level: RiskLevel): string {
+  return riskLabel(level);
+}
+
+export function tierFromScore(score: number): RiskLevel {
+  return riskLevelFromScore(score);
+}
 
 export function isLocationTrusted(lat: number | null, lng: number | null, trustedLocations?: any[]): { trusted: boolean; nearest?: any } {
   return { trusted: lat !== null && lng !== null }; // Stub implementation
 }
 
-interface ScoreInput {
-  faceMatched?: boolean;
-  faceConfidence?: number;
-  isTrustedLocation?: boolean;
-  isTrustedDevice?: boolean;
-  failedAttempts?: number;
-  hasWeakPasswords?: boolean;
-  hasDuplicatePasswords?: boolean;
-  recentIntruders?: number;
-  backupCompletedDays?: number | null;
-  behaviorAnomaly?: number;
-  hourOfDay?: number;
-  successfulAuths?: number;
-  unknownFaces?: number;
-  unknownLocations?: number;
-  suspiciousLoginTime?: boolean;
-  deviceMotion?: number;
-  trustedNetwork?: boolean;
-  trustedDevice?: boolean;
-  batteryTampering?: boolean;
-  chargingStatus?: string;
-  passwordStrength?: number;
-  vaultItemCount?: number;
-}
+export type { ScoreInput };
 
 export function computeSecurityScore(input: ScoreInput): SecurityScore {
   const {
