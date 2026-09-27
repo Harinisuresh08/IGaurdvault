@@ -83,8 +83,44 @@ export function Badge({ children, color = "#00E5FF", className = "" }: { childre
   );
 }
 
-export function Spinner({ size = 24 }: { size?: number }) {
-  return <Loader2 className="animate-spin text-accent" style={{ width: size, height: size }} />;
+export function Spinner({ size = 24, className = "" }: { size?: number; className?: string }) {
+  return <Loader2 className={`animate-spin text-accent ${className}`} style={{ width: size, height: size }} />;
+}
+
+export function SectionTitle({ title, subtitle, action }: { title: string; subtitle?: string; action?: ReactNode }) {
+  return (
+    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+      <div>
+        <h1 className="text-2xl font-bold text-white tracking-tight">{title}</h1>
+        {subtitle && <p className="text-sm text-muted-light mt-1">{subtitle}</p>}
+      </div>
+      {action && <div className="flex items-center gap-3">{action}</div>}
+    </div>
+  );
+}
+
+export function StatCard({ title, label, value, change, icon, color = "#00E5FF", accent, subtitle }: {
+  title?: string; label?: string; value: string | number; change?: string; icon?: ReactNode; color?: string; accent?: string; subtitle?: string;
+}) {
+  const displayTitle = title ?? label ?? "";
+  const displayColor = color ?? accent ?? "#00E5FF";
+  return (
+    <Card className="relative overflow-hidden">
+      <div className="flex items-start justify-between">
+        <div>
+          <p className="text-xs font-medium text-muted-light">{displayTitle}</p>
+          <h3 className="text-2xl font-bold text-white mt-1">{value}</h3>
+          {subtitle && <p className="text-xs text-muted mt-1">{subtitle}</p>}
+          {change && <p className="text-xs text-accent mt-1">{change}</p>}
+        </div>
+        {icon && (
+          <div className="p-2.5 rounded-xl text-white" style={{ background: `${displayColor}22`, color: displayColor }}>
+            {icon}
+          </div>
+        )}
+      </div>
+    </Card>
+  );
 }
 
 export function EmptyState({ icon, title, message, action }: { icon?: ReactNode; title: string; message?: string; action?: ReactNode }) {

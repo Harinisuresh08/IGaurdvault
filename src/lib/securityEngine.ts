@@ -1,4 +1,4 @@
-import type { SecurityScore, ScoreFactor, RiskLevel, RiskAssessment, RiskAction, AIInsight } from "@/types";
+import type { SecurityScore, ScoreFactor, RiskLevel, RiskAssessment, RiskAction, AIInsight, ScoreInput } from "@/types";
 
 export function riskLevelFromScore(score: number): RiskLevel {
   if (score < 20) return "safe";
@@ -22,103 +22,133 @@ export function riskLabel(level: RiskLevel): string {
   return level.charAt(0).toUpperCase() + level.slice(1) + " Risk";
 }
 
-interface ScoreInput {
-  faceMatched: boolean;
-  faceConfidence: number;
-  isTrustedLocation: boolean;
-  isTrustedDevice: boolean;
-  failedAttempts: number;
-  hasWeakPasswords: boolean;
-  hasDuplicatePasswords: boolean;
-  recentIntruders: number;
-  backupCompletedDays: number | null;
-  behaviorAnomaly: number;
-  hourOfDay: number;
+export function colorForTier(level: RiskLevel): string {
+  return riskColor(level);
+}
+
+export function labelForTier(level: RiskLevel): string {
+  return riskLabel(level);
+}
+
+export function tierFromScore(score: number): RiskLevel {
+  return riskLevelFromScore(score);
+}
+
+export function isLocationTrusted(lat: number | null, lng: number | null, trustedLocations?: any[]): { trusted: boolean; nearest?: any } {
+  return { trusted: lat !== null && lng !== null };
+}
+
+export function buildRiskSummary(scoreLogs: any[], threatEvents: any[], intruderEvents: any[], behaviorSamples: any[], trustedLocations?: any[]) {
+  return {
+    totalEvents: threatEvents.length,
+    intruderCount: intruderEvents.length,
+    behaviorAnomalies: behaviorSamples.length
+  };
+}
+
+export function analyzeBehavior(params: any): { label: string; confidence: number; explanation: string; factors: string[] } {
+  if (params?.repeatedFailures > 0) return { label: "suspicious", confidence: 0.8, explanation: "Repeated failures detected", factors: ["Failed login attempts"] };
+  if (params?.isKnownLocation === false) return { label: "suspicious", confidence: 0.6, explanation: "Unknown location", factors: ["Location anomaly"] };
+  return { label: "normal", confidence: 0.9, explanation: "Behavior matches baseline", factors: ["Normal usage pattern"] };
 }
 
 export function computeSecurityScore(input: ScoreInput): SecurityScore {
+  const {
+    faceMatched = false,
+    faceConfidence = 0,
+    isTrustedLocation = false,
+    isTrustedDevice = false,
+    failedAttempts = 0,
+    hasWeakPasswords = false,
+    hasDuplicatePasswords = false,
+    recentIntruders = 0,
+    backupCompletedDays = null,
+    behaviorAnomaly = 0,
+    hourOfDay = 12,
+  } = input ?? {};
+
   const factors: ScoreFactor[] = [];
   let score = 100;
 
-  if (!input.faceMatched) {
+  if (!faceMatched) {
     score -= 40;
     factors.push({ key: "face", label: "Face Recognition", status: "danger", penalty: 40, detail: "Face not matched — unauthorized access attempt" });
-  } else if (input.faceConfidence < 0.85) {
+  } else if (faceConfidence < 0.85) {
     score -= 10;
-    factors.push({ key: "face", label: "Face Confidence", status: "warning", penalty: 10, detail: `Low confidence (${Math.round(input.faceConfidence * 100)}%)` });
+    factors.push({ key: "face", label: "Face Confidence", status: "warning", penalty: 10, detail: `Low confidence (${Math.round(faceConfidence * 100)}%)` });
   } else {
-    factors.push({ key: "face", label: "Face Recognition", status: "good", penalty: 0, detail: `Face matched with ${Math.round(input.faceConfidence * 100)}% confidence` });
+    factors.push({ key: "face", label: "Face Recognition", status: "good", penalty: 0, detail: `Face matched with ${Math.round(faceConfidence * 100)}% confidence` });
   }
 
-  if (!input.isTrustedLocation) {
+  if (!isTrustedLocation) {
     score -= 15;
     factors.push({ key: "location", label: "Location Trust", status: "warning", penalty: 15, detail: "Vault accessed from an unknown location" });
   } else {
     factors.push({ key: "location", label: "Location Trust", status: "good", penalty: 0, detail: "Accessed from a trusted location" });
   }
 
-  if (!input.isTrustedDevice) {
+  if (!isTrustedDevice) {
     score -= 12;
     factors.push({ key: "device", label: "Device Trust", status: "warning", penalty: 12, detail: "Accessed from an unrecognized device" });
   } else {
     factors.push({ key: "device", label: "Device Trust", status: "good", penalty: 0, detail: "Accessed from a trusted device" });
   }
 
-  if (input.failedAttempts >= 5) {
+  if (failedAttempts >= 5) {
     score -= 20;
-    factors.push({ key: "attempts", label: "Failed Attempts", status: "danger", penalty: 20, detail: `${input.failedAttempts} failed login attempts detected` });
-  } else if (input.failedAttempts >= 2) {
+    factors.push({ key: "attempts", label: "Failed Attempts", status: "danger", penalty: 20, detail: `${failedAttempts} failed login attempts detected` });
+  } else if (failedAttempts >= 2) {
     score -= 8;
-    factors.push({ key: "attempts", label: "Failed Attempts", status: "warning", penalty: 8, detail: `${input.failedAttempts} recent failed attempts` });
+    factors.push({ key: "attempts", label: "Failed Attempts", status: "warning", penalty: 8, detail: `${failedAttempts} recent failed attempts` });
   } else {
     factors.push({ key: "attempts", label: "Login Attempts", status: "good", penalty: 0, detail: "No suspicious login attempts" });
   }
 
-  if (input.hasWeakPasswords) {
+  if (hasWeakPasswords) {
     score -= 12;
     factors.push({ key: "passwords", label: "Password Health", status: "warning", penalty: 12, detail: "Weak passwords detected in vault" });
   } else {
     factors.push({ key: "passwords", label: "Password Health", status: "good", penalty: 0, detail: "All passwords meet strength requirements" });
   }
 
-  if (input.hasDuplicatePasswords) {
+  if (hasDuplicatePasswords) {
     score -= 8;
     factors.push({ key: "duplicates", label: "Duplicate Passwords", status: "warning", penalty: 8, detail: "Duplicate passwords found across accounts" });
   } else {
     factors.push({ key: "duplicates", label: "Duplicate Passwords", status: "good", penalty: 0, detail: "No duplicate passwords" });
   }
 
-  if (input.recentIntruders >= 3) {
+  if (recentIntruders >= 3) {
     score -= 18;
-    factors.push({ key: "intruders", label: "Intruder Activity", status: "danger", penalty: 18, detail: `${input.recentIntruders} intruder attempts in recent history` });
-  } else if (input.recentIntruders >= 1) {
+    factors.push({ key: "intruders", label: "Intruder Activity", status: "danger", penalty: 18, detail: `${recentIntruders} intruder attempts in recent history` });
+  } else if (recentIntruders >= 1) {
     score -= 8;
-    factors.push({ key: "intruders", label: "Intruder Activity", status: "warning", penalty: 8, detail: `${input.recentIntruders} intruder attempt(s) detected` });
+    factors.push({ key: "intruders", label: "Intruder Activity", status: "warning", penalty: 8, detail: `${recentIntruders} intruder attempt(s) detected` });
   } else {
     factors.push({ key: "intruders", label: "Intruder Activity", status: "good", penalty: 0, detail: "No recent intruder attempts" });
   }
 
-  if (input.backupCompletedDays === null) {
+  if (backupCompletedDays === null) {
     score -= 10;
     factors.push({ key: "backup", label: "Backup Status", status: "warning", penalty: 10, detail: "No backup has been performed yet" });
-  } else if (input.backupCompletedDays > 30) {
+  } else if (backupCompletedDays > 30) {
     score -= 7;
-    factors.push({ key: "backup", label: "Backup Status", status: "warning", penalty: 7, detail: `Last backup was ${input.backupCompletedDays} days ago` });
+    factors.push({ key: "backup", label: "Backup Status", status: "warning", penalty: 7, detail: `Last backup was ${backupCompletedDays} days ago` });
   } else {
     factors.push({ key: "backup", label: "Backup Status", status: "good", penalty: 0, detail: "Backup is up to date" });
   }
 
-  if (input.behaviorAnomaly > 0.6) {
+  if (behaviorAnomaly > 0.6) {
     score -= 15;
-    factors.push({ key: "behavior", label: "Behavior Analysis", status: "danger", penalty: 15, detail: `Anomalous access pattern (${Math.round(input.behaviorAnomaly * 100)}% deviation)` });
-  } else if (input.behaviorAnomaly > 0.3) {
+    factors.push({ key: "behavior", label: "Behavior Analysis", status: "danger", penalty: 15, detail: `Anomalous access pattern (${Math.round(behaviorAnomaly * 100)}% deviation)` });
+  } else if (behaviorAnomaly > 0.3) {
     score -= 7;
-    factors.push({ key: "behavior", label: "Behavior Analysis", status: "warning", penalty: 7, detail: `Slightly unusual access pattern (${Math.round(input.behaviorAnomaly * 100)}% deviation)` });
+    factors.push({ key: "behavior", label: "Behavior Analysis", status: "warning", penalty: 7, detail: `Slightly unusual access pattern (${Math.round(behaviorAnomaly * 100)}% deviation)` });
   } else {
     factors.push({ key: "behavior", label: "Behavior Analysis", status: "good", penalty: 0, detail: "Access pattern matches your normal behavior" });
   }
 
-  if (input.hourOfDay >= 1 && input.hourOfDay <= 5) {
+  if (hourOfDay >= 1 && hourOfDay <= 5) {
     score -= 5;
     factors.push({ key: "time", label: "Access Time", status: "warning", penalty: 5, detail: "Vault accessed during unusual hours (1 AM - 5 AM)" });
   } else {
@@ -130,46 +160,57 @@ export function computeSecurityScore(input: ScoreInput): SecurityScore {
 }
 
 export function assessRisk(input: ScoreInput): RiskAssessment {
+  const {
+    faceMatched = false,
+    faceConfidence = 0,
+    isTrustedLocation = false,
+    isTrustedDevice = false,
+    failedAttempts = 0,
+    hasWeakPasswords = false,
+    backupCompletedDays = null,
+    behaviorAnomaly = 0,
+    hourOfDay = 12,
+  } = input ?? {};
   const reasons: string[] = [];
   const recommendations: string[] = [];
   let riskScore = 0;
 
-  if (!input.faceMatched) {
+  if (!faceMatched) {
     riskScore += 50;
     reasons.push("Face does not match stored embeddings");
     recommendations.push("Register your face if this is a new device or appearance change");
-  } else if (input.faceConfidence < 0.85) {
+  } else if (faceConfidence < 0.85) {
     riskScore += 10;
-    reasons.push(`Low face confidence (${Math.round(input.faceConfidence * 100)}%)`);
+    reasons.push(`Low face confidence (${Math.round(faceConfidence * 100)}%)`);
     recommendations.push("Ensure good lighting and face the camera directly");
   }
 
-  if (!input.isTrustedLocation) {
+  if (!isTrustedLocation) {
     riskScore += 15;
     reasons.push("Access from unknown location");
     recommendations.push("Add this location to trusted zones if you recognize it");
   }
-  if (!input.isTrustedDevice) {
+  if (!isTrustedDevice) {
     riskScore += 12;
     reasons.push("Access from unrecognized device");
     recommendations.push("Verify this is your device and add to trusted devices");
   }
-  if (input.failedAttempts >= 5) {
+  if (failedAttempts >= 5) {
     riskScore += 25;
-    reasons.push(`${input.failedAttempts} failed login attempts`);
+    reasons.push(`${failedAttempts} failed login attempts`);
     recommendations.push("Review recent activity and consider changing your PIN");
-  } else if (input.failedAttempts >= 2) {
+  } else if (failedAttempts >= 2) {
     riskScore += 8;
-    reasons.push(`${input.failedAttempts} recent failed attempts`);
+    reasons.push(`${failedAttempts} recent failed attempts`);
   }
-  if (input.hourOfDay >= 1 && input.hourOfDay <= 5) {
+  if (hourOfDay >= 1 && hourOfDay <= 5) {
     riskScore += 10;
     reasons.push("Late night login (1 AM - 5 AM)");
     recommendations.push("Enable Two-Factor Authentication for off-hours access");
   }
-  if (input.behaviorAnomaly > 0.5) {
+  if (behaviorAnomaly > 0.5) {
     riskScore += 15;
-    reasons.push(`Anomalous behavior pattern (${Math.round(input.behaviorAnomaly * 100)}% deviation)`);
+    reasons.push(`Anomalous behavior pattern (${Math.round(behaviorAnomaly * 100)}% deviation)`);
     recommendations.push("Review your recent login history for unfamiliar activity");
   }
 
@@ -181,8 +222,8 @@ export function assessRisk(input: ScoreInput): RiskAssessment {
   else if (riskScore < 75) action = "require_biometric";
   else action = "block_access";
 
-  if (input.hasWeakPasswords) recommendations.push("Update weak passwords to improve your security score");
-  if (input.backupCompletedDays === null || (input.backupCompletedDays ?? 0) > 30)
+  if (hasWeakPasswords) recommendations.push("Update weak passwords to improve your security score");
+  if (backupCompletedDays === null || (backupCompletedDays ?? 0) > 30)
     recommendations.push("Perform a vault backup to secure your data");
   if (recommendations.length === 0) recommendations.push("Your security posture is strong. Keep it up!");
 
@@ -191,7 +232,7 @@ export function assessRisk(input: ScoreInput): RiskAssessment {
     level: riskLevelFromScore(riskScore),
     reasons,
     recommendations,
-    confidence: input.faceMatched ? Math.max(0.5, 1 - riskScore / 100) : 0.1,
+    confidence: faceMatched ? Math.max(0.5, 1 - riskScore / 100) : 0.1,
     action,
     timestamp: new Date().toISOString(),
   };

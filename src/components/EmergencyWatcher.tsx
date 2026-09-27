@@ -63,7 +63,8 @@ export function EmergencyWatcher() {
     setExecuting(true);
     const [device, geo] = await Promise.all([getDeviceInfo(), getGeoInfo()]);
 
-    await logIntruderEvent(user.id, {
+    await logIntruderEvent({
+      user_id: user.id,
       photo_base64: null,
       latitude: geo?.latitude ?? null,
       longitude: geo?.longitude ?? null,
@@ -80,32 +81,32 @@ export function EmergencyWatcher() {
       threat_level: "critical",
     });
 
-    await logThreatEvent(
-      user.id,
-      "emergency_triggered",
-      "Emergency mode activated",
-      "Critical risk threshold exceeded. Evidence captured, emergency contact notified, report generated.",
-      "critical",
-      { score: score.score, factors: score.factors.length }
-    );
+    await logThreatEvent({
+      user_id: user.id,
+      event_type: "emergency_triggered",
+      title: "Emergency mode activated",
+      description: "Critical risk threshold exceeded. Evidence captured, emergency contact notified, report generated.",
+      severity: "critical",
+      metadata: { score: score.score, factors: score.factors.length },
+    });
 
-    await pushNotification(
-      user.id,
-      "EMERGENCY ALERT",
-      "Critical security risk detected. Emergency protocols have been activated.",
-      "danger"
-    );
+    await pushNotification({
+      user_id: user.id,
+      title: "EMERGENCY ALERT",
+      message: "Critical security risk detected. Emergency protocols have been activated.",
+      type: "danger",
+    });
 
     if (profile?.emergency_contact_email) {
       // In a native app this would send via Firebase / SMTP.
       // Here we log the intent.
-      await logThreatEvent(
-        user.id,
-        "alert_sent",
-        "Emergency contact notified",
-        `Email alert sent to ${profile.emergency_contact_email}`,
-        "high"
-      );
+      await logThreatEvent({
+        user_id: user.id,
+        event_type: "alert_sent",
+        title: "Emergency contact notified",
+        description: `Email alert sent to ${profile.emergency_contact_email}`,
+        severity: "high",
+      });
     }
 
     await data.loadAll(user.id);

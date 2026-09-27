@@ -73,24 +73,25 @@ export default function FaceRecognizePage() {
     setResult(recognition);
 
     if (recognition.isAuthorized) {
-      await logThreatEvent(
-        user.id,
-        "login_success",
-        "Authorized face recognized",
-        `Identity verified with ${(recognition.confidence * 100).toFixed(1)}% confidence.`,
-        "low",
-        { confidence: recognition.confidence, pose: recognition.matchedPose }
-      );
+      await logThreatEvent({
+        user_id: user.id,
+        event_type: "login_success",
+        title: "Authorized face recognized",
+        description: `Identity verified with ${(recognition.confidence * 100).toFixed(1)}% confidence.`,
+        severity: "low",
+        metadata: { confidence: recognition.confidence, pose: recognition.matchedPose },
+      });
       setPhase("result");
     } else {
       // Intruder detection flow
       const [device, geo] = await Promise.all([getDeviceInfo(), getGeoInfo()]);
       const loc = geo
         ? isLocationTrusted(geo.latitude, geo.longitude, trustedLocations)
-        : { trusted: false };
+        : { trusted: false, nearest: undefined };
       const threatLevel = recognition.confidence < 0.3 ? "high" : "medium";
       const confidenceScore = 1 - recognition.confidence;
-      await logIntruderEvent(user.id, {
+      await logIntruderEvent({
+        user_id: user.id,
         photo_base64: img,
         latitude: geo?.latitude ?? null,
         longitude: geo?.longitude ?? null,
@@ -108,20 +109,20 @@ export default function FaceRecognizePage() {
         confidence_score: confidenceScore,
         threat_level: threatLevel,
       });
-      await logThreatEvent(
-        user.id,
-        "intruder_capture",
-        "Intruder detected",
-        `Unknown face captured with ${(confidenceScore * 100).toFixed(1)}% anomaly confidence. Evidence stored.`,
-        threatLevel === "high" ? "high" : "medium",
-        { confidence: confidenceScore, location: loc.nearest?.label }
-      );
-      await pushNotification(
-        user.id,
-        "Intruder Alert",
-        "An unknown face was detected. Evidence has been captured and stored.",
-        "danger"
-      );
+      await logThreatEvent({
+        user_id: user.id,
+        event_type: "intruder_capture",
+        title: "Intruder detected",
+        description: `Unknown face captured with ${(confidenceScore * 100).toFixed(1)}% anomaly confidence. Evidence stored.`,
+        severity: threatLevel === "high" ? "high" : "medium",
+        metadata: { confidence: confidenceScore, location: loc.nearest?.label },
+      });
+      await pushNotification({
+        user_id: user.id,
+        title: "Intruder Alert",
+        message: "An unknown face was detected. Evidence has been captured and stored.",
+        type: "danger",
+      });
       await loadAll(user.id);
       setPhase("intruder");
     }

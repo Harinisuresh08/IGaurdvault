@@ -3,7 +3,8 @@ import type { EventType, SecurityEvent, AppNotification } from "@/types";
 
 export async function logSecurityEvent(params: {
   user_id: string;
-  type: EventType;
+  type?: EventType;
+  event_type?: EventType;
   severity?: SecurityEvent["severity"];
   title: string;
   description: string;
@@ -14,7 +15,7 @@ export async function logSecurityEvent(params: {
 }): Promise<void> {
   const { error } = await supabase.from("threat_events").insert({
     user_id: params.user_id,
-    event_type: params.type,
+    event_type: params.type ?? params.event_type ?? "login_success",
     severity: params.severity ?? "info",
     title: params.title,
     description: params.description,
@@ -24,6 +25,10 @@ export async function logSecurityEvent(params: {
     device_info: params.device_info ?? null,
   });
   if (error) console.error("Failed to log event:", error.message);
+}
+
+export async function logThreatEvent(params: any): Promise<void> {
+  return logSecurityEvent(params);
 }
 
 export async function logIntruderEvent(params: {
@@ -38,6 +43,7 @@ export async function logIntruderEvent(params: {
   threat_level?: string;
   ai_explanation?: string;
   evidence?: Record<string, unknown>;
+  [key: string]: any;
 }): Promise<void> {
   const { error } = await supabase.from("intruder_events").insert({
     user_id: params.user_id,
@@ -59,14 +65,16 @@ export async function logIntruderEvent(params: {
 export async function pushNotification(params: {
   user_id: string;
   title: string;
-  message: string;
+  message?: string;
+  body?: string;
   type?: AppNotification["type"];
   action_url?: string | null;
+  [key: string]: any;
 }): Promise<void> {
   const { error } = await supabase.from("notifications").insert({
     user_id: params.user_id,
     title: params.title,
-    body: params.message,
+    body: params.message ?? params.body ?? "",
     type: params.type ?? "info",
     is_read: false,
     action_url: params.action_url ?? null,

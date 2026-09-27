@@ -47,12 +47,43 @@ export const DEFAULT_SETTINGS: UserSettings = {
 // ─── Security Score & Risk ───────────────────────────────────
 
 export type RiskLevel = "safe" | "low" | "medium" | "high" | "critical";
+export type ThreatLevel = RiskLevel;
+export type AnomalyLabel = string;
 
 export interface SecurityScore {
   score: number;
   level: RiskLevel;
+  tier?: string;
+  reasons?: string[];
+  recommendations?: string[];
   factors: ScoreFactor[];
   updated_at: string;
+}
+
+export interface ScoreInput {
+  faceMatched?: boolean;
+  faceConfidence?: number;
+  isTrustedLocation?: boolean;
+  isTrustedDevice?: boolean;
+  failedAttempts?: number;
+  hasWeakPasswords?: boolean;
+  hasDuplicatePasswords?: boolean;
+  recentIntruders?: number;
+  backupCompletedDays?: number | null;
+  behaviorAnomaly?: number;
+  hourOfDay?: number;
+  successfulAuths?: number;
+  unknownFaces?: number;
+  unknownLocations?: number;
+  suspiciousLoginTime?: boolean;
+  deviceMotion?: number;
+  trustedNetwork?: boolean;
+  trustedDevice?: boolean;
+  batteryTampering?: boolean;
+  chargingStatus?: string;
+  passwordStrength?: number;
+  vaultItemCount?: number;
+  [key: string]: any;
 }
 
 export interface ScoreFactor {
@@ -61,6 +92,8 @@ export interface ScoreFactor {
   status: "good" | "warning" | "danger";
   penalty: number;
   detail: string;
+  value?: any;
+  reason?: string;
 }
 
 export interface RiskAssessment {
@@ -87,7 +120,18 @@ export type EventType =
   | "intruder_detected" | "vault_item_added" | "vault_item_viewed"
   | "vault_item_deleted" | "password_added" | "password_viewed"
   | "folder_created" | "backup_completed" | "alert_generated"
-  | "recommendation_generated" | "setting_changed" | "report_generated";
+  | "recommendation_generated" | "setting_changed" | "report_generated"
+  | "unknown_face" | "emergency_triggered" | "alert_sent"
+  | "intruder_capture" | "location_change" | "behavior_anomaly"
+  | "face_registered" | "login_failed";
+
+export interface FaceEmbedding {
+  id: string;
+  user_id: string;
+  embedding: number[];
+  pose?: string;
+  created_at: string;
+}
 
 export interface SecurityEvent {
   id: string;

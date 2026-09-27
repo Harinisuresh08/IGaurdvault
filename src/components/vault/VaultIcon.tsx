@@ -47,8 +47,8 @@ export function VaultIcon({
   return <Icon size={size} style={{ color }} />;
 }
 
-function categoryToIcon(cat?: VaultCategory): string {
-  const map: Record<VaultCategory, string> = {
+function categoryToIcon(cat?: VaultCategory | string): string {
+  const map: Record<string, string> = {
     pdf: "file-text",
     image: "image",
     video: "video",

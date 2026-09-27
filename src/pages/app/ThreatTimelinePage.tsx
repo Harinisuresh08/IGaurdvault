@@ -23,10 +23,10 @@ import { format, formatDistanceToNow } from "date-fns";
 import type { EventType } from "@/types";
 import clsx from "clsx";
 
-const EVENT_META: Record<
+const EVENT_META: Partial<Record<
   EventType,
   { icon: typeof LogIn; color: string; label: string }
-> = {
+>> = {
   login_success: { icon: LogIn, color: "#22C55E", label: "Login" },
   login_failed: { icon: LogOut, color: "#EF4444", label: "Failed Login" },
   unknown_face: { icon: ScanFace, color: "#F59E0B", label: "Unknown Face" },

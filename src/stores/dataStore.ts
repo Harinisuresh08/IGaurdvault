@@ -8,6 +8,7 @@ import type {
 
 interface DataState {
   securityEvents: SecurityEvent[];
+  threatEvents: SecurityEvent[];
   intruderEvents: IntruderEvent[];
   vaultFolders: VaultFolder[];
   vaultItems: VaultItem[];
@@ -18,16 +19,20 @@ interface DataState {
   notifications: AppNotification[];
   chatMessages: ChatMessage[];
   recommendations: Recommendation[];
+  scoreLogs: any[];
+  faceEmbeddings: any[];
   loading: boolean;
+  loaded: boolean;
   loadAll: (userId: string) => Promise<void>;
   subscribe: (userId: string) => (() => void) | null;
 }
 
 export const useDataStore = create<DataState>((set, get) => ({
-  securityEvents: [], intruderEvents: [], vaultFolders: [], vaultItems: [],
+  securityEvents: [], threatEvents: [], intruderEvents: [], vaultFolders: [], vaultItems: [],
   passwordEntries: [], trustedDevices: [], trustedLocations: [],
   behaviorSamples: [], notifications: [], chatMessages: [], recommendations: [],
-  loading: false,
+  scoreLogs: [], faceEmbeddings: [],
+  loading: false, loaded: true,
 
   loadAll: async (userId) => {
     set({ loading: true });
@@ -45,12 +50,12 @@ export const useDataStore = create<DataState>((set, get) => ({
       supabase.from("recommendations").select("*").eq("user_id", userId).order("created_at", { ascending: false }).limit(50),
     ]);
     set({
-      securityEvents: events.data ?? [], intruderEvents: intruders.data ?? [],
+      securityEvents: events.data ?? [], threatEvents: events.data ?? [], intruderEvents: intruders.data ?? [],
       vaultFolders: folders.data ?? [], vaultItems: items.data ?? [],
       passwordEntries: passwords.data ?? [], trustedDevices: devices.data ?? [],
       trustedLocations: locations.data ?? [], behaviorSamples: behavior.data ?? [],
       notifications: notifs.data ?? [], chatMessages: (chat.data ?? []).reverse() as ChatMessage[],
-      recommendations: recs.data ?? [], loading: false,
+      recommendations: recs.data ?? [], loading: false, loaded: true,
     });
   },
 

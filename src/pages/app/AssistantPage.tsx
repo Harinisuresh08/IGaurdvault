@@ -43,13 +43,13 @@ export default function AssistantPage() {
     const content = text.trim();
     setInput("");
     setThinking(true);
-    await logChatMessage(user.id, "user", content);
+    await logChatMessage({ user_id: user.id, role: "user", content });
 
     const reply = generateReply(content, data);
 
     setTimeout(async () => {
       setThinking(false);
-      await logChatMessage(user.id, "assistant", reply.text, { sources: reply.sources });
+      await logChatMessage({ user_id: user.id, role: "assistant", content: reply.text, metadata: { sources: reply.sources } });
     }, 700 + Math.random() * 500);
   }
 
@@ -215,16 +215,18 @@ function generateReply(
     data.behaviorSamples,
     data.trustedLocations
   );
+  const currentTier = (score.tier ?? score.level ?? "safe") as any;
+  const recommendations = score.recommendations ?? [];
 
   if (q.includes("score") && (q.includes("low") || q.includes("why"))) {
     const topFactors = score.factors
-      .filter((f) => f.value > 3)
-      .sort((a, b) => b.value - a.value)
+      .filter((f) => (f.value ?? f.penalty ?? 0) > 3)
+      .sort((a, b) => (b.value ?? b.penalty ?? 0) - (a.value ?? a.penalty ?? 0))
       .slice(0, 3);
     return {
-      text: `Your security score is ${score.score} (${labelForTier(score.tier)}). The main factors lowering it are:\n\n${topFactors
-        .map((f) => `• ${f.label}: -${f.value.toFixed(0)} pts — ${f.reason}`)
-        .join("\n")}\n\nRecommendations:\n${score.recommendations.map((r) => `• ${r}`).join("\n")}`,
+      text: `Your security score is ${score.score} (${labelForTier(currentTier)}). The main factors lowering it are:\n\n${topFactors
+        .map((f) => `• ${f.label}: -${(f.value ?? f.penalty ?? 0).toFixed(0)} pts — ${f.reason ?? f.detail}`)
+        .join("\n")}\n\nRecommendations:\n${recommendations.map((r) => `• ${r}`).join("\n")}`,
       sources: ["security_engine", "risk_summary"],
     };
   }
@@ -253,7 +255,7 @@ function generateReply(
   }
   if (q.includes("improve") || q.includes("better") || q.includes("protect")) {
     return {
-      text: `Here's how to improve your security:\n\n${score.recommendations
+      text: `Here's how to improve your security:\n\n${recommendations
         .map((r) => `• ${r}`)
         .join("\n")}\n\n• Enroll more face angles for better recognition\n• Add trusted locations (Home, Office)\n• Register trusted Bluetooth/Wi-Fi devices\n• Keep emergency mode enabled`,
       sources: ["security_engine"],
@@ -266,7 +268,7 @@ function generateReply(
     };
   }
   return {
-    text: `I can help with your security posture. Your current score is ${score.score} (${labelForTier(score.tier)}). You have ${summary.totalEvents} tracked events, ${summary.intruderCount} intruders, and ${summary.behaviorAnomalies} behavior anomalies. Ask me about your score, alerts, anomalies, or how to improve.`,
+    text: `I can help with your security posture. Your current score is ${score.score} (${labelForTier(currentTier)}). You have ${summary.totalEvents} tracked events, ${summary.intruderCount} intruders, and ${summary.behaviorAnomalies} behavior anomalies. Ask me about your score, alerts, anomalies, or how to improve.`,
     sources: ["security_engine", "risk_summary"],
   };
 }

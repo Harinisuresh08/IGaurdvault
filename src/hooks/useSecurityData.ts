@@ -13,7 +13,9 @@ export function useSecurityData() {
     if (!user) return;
     loadAll(user.id);
     const unsub = subscribe(user.id);
-    return unsub;
+    return () => {
+      if (unsub) unsub();
+    };
   }, [user, loadAll, subscribe]);
 
   return useDataStore();

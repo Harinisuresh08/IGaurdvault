@@ -7,7 +7,7 @@ import { Card, Badge, EmptyState } from "@/components/ui";
 import { formatDistanceToNow, format } from "date-fns";
 import type { EventType } from "@/types";
 
-const EVENT_ICONS: Record<EventType, typeof Clock> = {
+const EVENT_ICONS: Partial<Record<EventType, typeof Clock>> = {
   login_success: LogIn, login_failure: LogOut, face_match: ScanFace, face_mismatch: ScanFace,
   intruder_detected: AlertTriangle, vault_item_added: Lock, vault_item_viewed: Eye,
   vault_item_deleted: Trash2, password_added: KeyRound, password_viewed: Eye,

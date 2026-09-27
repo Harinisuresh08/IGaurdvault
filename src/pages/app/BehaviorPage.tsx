@@ -118,12 +118,9 @@ export default function BehaviorPage() {
       high_risk: "high_risk",
       critical: "critical",
     };
-    await logBehaviorSample(user.id, {
+    await logBehaviorSample({
+      user_id: user.id,
       unlock_time: `${String(hour).padStart(2, "0")}:00`,
-      screen_on_duration_min: 120,
-      motion_acceleration: 0.3,
-      latitude: geo?.latitude ?? null,
-      longitude: geo?.longitude ?? null,
       usage_pattern: "interactive",
       repeated_failures: 0,
       anomaly_label: labelMap[res.label],
@@ -131,20 +128,20 @@ export default function BehaviorPage() {
       explanation: res.explanation,
     });
     if (res.label !== "normal") {
-      await logThreatEvent(
-        user.id,
-        "behavior_anomaly",
-        `Behavior anomaly: ${res.label.replace("_", " ")}`,
-        res.explanation,
-        res.label === "critical" ? "critical" : res.label === "high_risk" ? "high" : "medium",
-        { confidence: res.confidence }
-      );
-      await pushNotification(
-        user.id,
-        "Behavior Anomaly Detected",
-        res.explanation.slice(0, 100),
-        res.label === "critical" ? "danger" : "warning"
-      );
+      await logThreatEvent({
+        user_id: user.id,
+        event_type: "behavior_anomaly",
+        title: `Behavior anomaly: ${res.label.replace("_", " ")}`,
+        description: res.explanation,
+        severity: res.label === "critical" ? "critical" : res.label === "high_risk" ? "high" : "medium",
+        metadata: { confidence: res.confidence },
+      });
+      await pushNotification({
+        user_id: user.id,
+        title: "Behavior Anomaly Detected",
+        message: res.explanation.slice(0, 100),
+        type: res.label === "critical" ? "danger" : "warning",
+      });
     }
     await loadAll(user.id);
     setScanning(false);

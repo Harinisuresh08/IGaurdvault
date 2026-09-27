@@ -101,14 +101,14 @@ export default function FaceRegisterPage() {
       }));
       const { error } = await supabase.from("face_embeddings").insert(rows);
       if (error) throw error;
-      await logThreatEvent(
-        user.id,
-        "face_registered",
-        "Face registration completed",
-        `Enrolled ${rows.length} face captures for biometric authentication.`,
-        "info",
-        { poses: rows.map((r) => r.pose) }
-      );
+      await logThreatEvent({
+        user_id: user.id,
+        event_type: "face_registered",
+        title: "Face registration completed",
+        description: `Enrolled ${rows.length} face captures for biometric authentication.`,
+        severity: "info",
+        metadata: { poses: rows.map((r) => r.pose) },
+      });
       await loadAll(user.id);
       setDone(true);
     } catch (e) {
