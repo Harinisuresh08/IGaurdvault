@@ -7,6 +7,8 @@ import OnboardingScreen from "@/pages/auth/OnboardingScreen";
 import LoginPage from "@/pages/auth/LoginPage";
 import RegisterPage from "@/pages/auth/RegisterPage";
 import AppLayout from "@/components/layout/AppLayout";
+import FaceVerifyPage from "@/pages/auth/FaceVerifyPage";
+import { FACE_VERIFIED_KEY } from "@/pages/auth/FaceVerifyPage";
 import DashboardPage from "@/pages/app/DashboardPage";
 import VaultPage from "@/pages/app/VaultPage";
 import VaultItemPage from "@/pages/app/VaultItemPage";
@@ -19,6 +21,8 @@ import SettingsPage from "@/pages/app/SettingsPage";
 import ProfilePage from "@/pages/app/ProfilePage";
 import AboutPage from "@/pages/app/AboutPage";
 import TimelinePage from "@/pages/app/TimelinePage";
+import FaceRegisterPage from "@/pages/app/FaceRegisterPage";
+import FaceRecognizePage from "@/pages/app/FaceRecognizePage";
 import NotificationsPage from "@/pages/app/NotificationsPage";
 import { lockVault } from "@/lib/crypto";
 import { logSecurityEvent, getDeviceInfo } from "@/lib/securityService";
@@ -29,6 +33,12 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
   if (!initialized || loading) return <SplashScreen />;
   if (!session) return <Navigate to="/auth/login" state={{ from: location }} replace />;
+
+  // Require face verification every session
+  if (!sessionStorage.getItem(FACE_VERIFIED_KEY)) {
+    return <Navigate to="/auth/face-verify" replace />;
+  }
+
   return <>{children}</>;
 }
 
@@ -64,6 +74,7 @@ function AppRoutes() {
       <Route path="/onboarding" element={<OnboardingScreen />} />
       <Route path="/auth/login" element={<LoginPage />} />
       <Route path="/auth/register" element={<RegisterPage />} />
+      <Route path="/auth/face-verify" element={<FaceVerifyPage />} />
       <Route path="/app" element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
         <Route index element={<Navigate to="/app/dashboard" replace />} />
         <Route path="dashboard" element={<DashboardPage />} />
@@ -76,6 +87,8 @@ function AppRoutes() {
         <Route path="reports" element={<ReportsPage />} />
         <Route path="timeline" element={<TimelinePage />} />
         <Route path="notifications" element={<NotificationsPage />} />
+        <Route path="face/register" element={<FaceRegisterPage />} />
+        <Route path="face/recognize" element={<FaceRecognizePage />} />
         <Route path="settings" element={<SettingsPage />} />
         <Route path="profile" element={<ProfilePage />} />
         <Route path="about" element={<AboutPage />} />

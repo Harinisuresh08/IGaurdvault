@@ -32,7 +32,7 @@ export default function LoginPage() {
         device_info: getDeviceInfo(),
       });
     }
-    navigate("/app/dashboard");
+    navigate("/auth/face-verify");
   };
 
   return (

@@ -33,7 +33,7 @@ export default function RegisterPage() {
       setLoading(false);
       return;
     }
-    navigate("/app/dashboard");
+    navigate("/auth/face-verify");
   };
 
   return (

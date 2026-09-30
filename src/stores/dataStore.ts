@@ -68,6 +68,7 @@ export const useDataStore = create<DataState>((set, get) => ({
       notifs,
       chat,
       recs,
+      faceEmbs,
     ] = await Promise.all([
       supabase
         .from("threat_events")
@@ -140,6 +141,12 @@ export const useDataStore = create<DataState>((set, get) => ({
         .eq("user_id", userId)
         .order("created_at", { ascending: false })
         .limit(50),
+
+      supabase
+        .from("face_embeddings")
+        .select("*")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false }),
     ]);
 
     set({
@@ -155,6 +162,7 @@ export const useDataStore = create<DataState>((set, get) => ({
       notifications: notifs.data ?? [],
       chatMessages: (chat.data ?? []).reverse() as ChatMessage[],
       recommendations: recs.data ?? [],
+      faceEmbeddings: faceEmbs.data ?? [],
       loading: false,
       loaded: true,
     });

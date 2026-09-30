@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { NavLink, Outlet, useNavigate, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Shield, LayoutDashboard, Lock, KeyRound, Brain, TriangleAlert as AlertTriangle, Bot, FileText, Settings, User, LogOut, Bell, Menu, X, Clock, Info } from "lucide-react";
+import { Shield, LayoutDashboard, Lock, KeyRound, Brain, TriangleAlert as AlertTriangle, Bot, FileText, Settings, User, LogOut, Bell, Menu, X, Clock, Info, ScanFace } from "lucide-react";
 import { useAuthStore } from "@/stores/authStore";
 import { useDataStore } from "@/stores/dataStore";
 import { lockVault, isVaultUnlocked } from "@/lib/crypto";
@@ -14,6 +14,8 @@ const navItems = [
   { to: "/app/passwords", icon: KeyRound, label: "Passwords" },
   { to: "/app/security", icon: Brain, label: "Security Center" },
   { to: "/app/intruders", icon: AlertTriangle, label: "Intruder Center" },
+  { to: "/app/face/register", icon: ScanFace, label: "Face Register" },
+  { to: "/app/face/recognize", icon: ScanFace, label: "Face Recognize" },
   { to: "/app/assistant", icon: Bot, label: "AI Assistant" },
   { to: "/app/timeline", icon: Clock, label: "Timeline" },
   { to: "/app/reports", icon: FileText, label: "Reports" },

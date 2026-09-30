@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Shield, Lock, KeyRound, TriangleAlert as AlertTriangle, Activity, TrendingUp, Clock, FileText, Brain, ArrowRight, CircleCheck as CheckCircle2, Circle as XCircle, Lightbulb, Zap } from "lucide-react";
+import { Shield, Lock, KeyRound, TriangleAlert as AlertTriangle, Activity, TrendingUp, Clock, FileText, Brain, ArrowRight, CircleCheck as CheckCircle2, Circle as XCircle, Lightbulb, Zap, Copy, ShieldAlert, ShieldCheck, Download, Calendar } from "lucide-react";
 import { useAuthStore } from "@/stores/authStore";
 import { useDataStore } from "@/stores/dataStore";
 import { computeSecurityScore, generateInsights, riskColor, riskLabel } from "@/lib/securityEngine";
@@ -12,7 +12,7 @@ import { formatDistanceToNow } from "date-fns";
 
 const iconMap: Record<string, typeof Shield> = {
   Shield, Lock, KeyRound, AlertTriangle, Activity, FileText, Brain,
-  CheckCircle2, XCircle, Lightbulb, ShieldCheck: Shield,
+  CheckCircle2, XCircle, Lightbulb, ShieldCheck, ShieldAlert, Copy, Download, Calendar,
 };
 
 export default function DashboardPage() {
@@ -195,7 +195,7 @@ export default function DashboardPage() {
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
             {insights.slice(0, 6).map((insight, i) => {
-              const Icon = insight.icon ? iconMap[insight.icon] : Lightbulb;
+              const Icon = (insight.icon && iconMap[insight.icon]) || Lightbulb;
               const color = insight.type === "danger" ? "#EF4444" : insight.type === "warning" ? "#F59E0B" : insight.type === "success" ? "#22C55E" : "#00E5FF";
               return (
                 <motion.div key={i} initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: i * 0.05 }}>
