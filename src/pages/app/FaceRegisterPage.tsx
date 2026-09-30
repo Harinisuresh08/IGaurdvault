@@ -92,12 +92,16 @@ export default function FaceRegisterPage() {
     if (!user) return;
     setSaving(true);
     try {
-      const rows = Object.entries(captures).map(([pose, img]) => ({
-        user_id: user.id,
-        pose,
-        image_base64: img,
-        embedding: generateEmbedding(img),
-        is_primary: pose === "front",
+      const rows = await Promise.all(Object.entries(captures).map(async ([pose, img]) => {
+        const embedding = await generateEmbedding(img);
+        if (!embedding) throw new Error("No face detected in " + pose + " image");
+        return {
+          user_id: user.id,
+          pose,
+          image_base64: img,
+          embedding,
+          is_primary: pose === "front",
+        };
       }));
       const { error } = await supabase.from("face_embeddings").insert(rows);
       if (error) throw error;

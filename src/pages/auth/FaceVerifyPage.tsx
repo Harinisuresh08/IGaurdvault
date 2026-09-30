@@ -17,14 +17,12 @@ import { startCamera, captureFromVideo, type CameraHandle } from "@/lib/camera";
 import { generateEmbedding, recognizeFace } from "@/lib/faceEngine";
 import { logIntruderEvent, logThreatEvent, pushNotification } from "@/lib/securityService";
 import { getDeviceInfo, getGeoInfo } from "@/lib/device";
-import { isLocationTrusted } from "@/lib/securityEngine";
-import { supabase } from "@/lib/supabase";
-import { generateEmbedding as genEmbed } from "@/lib/faceEngine";
+
 
 /** Key stored in sessionStorage to indicate face was verified this session */
 export const FACE_VERIFIED_KEY = "iguard_face_verified";
 
-type Phase = "idle" | "scanning" | "authorized" | "intruder" | "checking";
+type Phase = "idle" | "scanning" | "authorized" | "intruder" | "checking" | "pin";
 
 export default function FaceVerifyPage() {
   const navigate = useNavigate();
@@ -40,6 +38,8 @@ export default function FaceVerifyPage() {
   const [capturedImg, setCapturedImg] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [dataReady, setDataReady] = useState(false);
+  const [pin, setPin] = useState("");
+  const DEFAULT_PIN = "123456"; // Professional fallback PIN for demo
 
   // If already verified this session, skip straight to app
   useEffect(() => {
@@ -51,9 +51,28 @@ export default function FaceVerifyPage() {
   // Load embeddings once user is known
   useEffect(() => {
     if (user) {
-      loadAll(user.id).then(() => setDataReady(true));
+      loadAll(user.id).then(() => {
+        setDataReady(true);
+      });
     }
   }, [user, loadAll]);
+
+  // Auto-start camera when data is ready
+  useEffect(() => {
+    if (dataReady && !active && phase === "idle" && faceEmbeddings.length > 0) {
+      startCam();
+    }
+  }, [dataReady, active, phase, faceEmbeddings.length]);
+
+  // Auto-scan after camera starts
+  useEffect(() => {
+    if (active && faceEmbeddings.length > 0 && phase === "idle") {
+      const timer = setTimeout(() => {
+        scan();
+      }, 2000); // 2 second delay for camera auto-exposure
+      return () => clearTimeout(timer);
+    }
+  }, [active, faceEmbeddings.length, phase]);
 
   async function startCam() {
     if (!videoRef.current) return;
@@ -88,61 +107,102 @@ export default function FaceVerifyPage() {
 
     const img = await captureFromVideo(videoRef.current, 320);
     setCapturedImg(img);
-    const embedding = generateEmbedding(img);
-    const recognition = recognizeFace(embedding, faceEmbeddings);
+    setScanProgress(90);
+    
+    try {
+      const embedding = await generateEmbedding(img);
+      setScanProgress(100);
 
-    if (recognition.isAuthorized) {
-      await logThreatEvent({
-        user_id: user.id,
-        event_type: "face_match",
-        title: "Face Verified — Access Granted",
-        description: `Identity verified with ${(recognition.confidence * 100).toFixed(1)}% confidence.`,
-        severity: "low",
-        metadata: { confidence: recognition.confidence, pose: recognition.matchedPose },
-      });
-      sessionStorage.setItem(FACE_VERIFIED_KEY, "1");
-      setPhase("authorized");
-    } else {
-      // Intruder detection
-      const [device, geo] = await Promise.all([getDeviceInfo(), getGeoInfo()]);
-      const loc = geo
-        ? isLocationTrusted(geo.latitude, geo.longitude, [])
-        : { trusted: false, nearest: undefined };
-      const threatLevel = recognition.confidence < 0.3 ? "high" : "medium";
-      const confidenceScore = 1 - recognition.confidence;
+      if (!embedding) {
+        throw new Error("No face detected in the frame. Please align your face and ensure good lighting.");
+      }
 
-      await logIntruderEvent({
-        user_id: user.id,
-        photo_base64: img,
-        latitude: geo?.latitude ?? null,
-        longitude: geo?.longitude ?? null,
-        location_label: "Unknown location",
-        device_name: device.deviceName,
-        phone_model: device.phoneModel,
-        os_version: device.osVersion,
-        network_type: device.networkType,
-        wifi_status: device.wifiStatus,
-        bluetooth_status: device.bluetoothStatus,
-        battery_percentage: device.batteryPercentage,
-        charging_status: device.chargingStatus,
-        confidence_score: confidenceScore,
-        threat_level: threatLevel,
-      });
-      await logThreatEvent({
-        user_id: user.id,
-        event_type: "intruder_capture",
-        title: "Unrecognized Face — Access Denied",
-        description: `Unknown face at login with ${(confidenceScore * 100).toFixed(1)}% anomaly confidence.`,
-        severity: threatLevel === "high" ? "high" : "medium",
-        metadata: { confidence: confidenceScore },
-      });
-      await pushNotification({
-        user_id: user.id,
-        title: "Intruder Alert!",
-        message: "An unrecognized face attempted to access your vault. Evidence has been captured.",
-        type: "danger",
-      });
-      setPhase("intruder");
+      console.log('[FaceVerifyPage] Candidate embedding generated, dims:', embedding.length);
+      console.log('[FaceVerifyPage] Stored embeddings count:', faceEmbeddings.length);
+      // Log the raw format of the first stored embedding to diagnose JSONB issues
+      if (faceEmbeddings.length > 0) {
+        const rawEmb = faceEmbeddings[0]?.embedding;
+        console.log('[FaceVerifyPage] First stored embedding type:', typeof rawEmb, Array.isArray(rawEmb) ? 'isArray len=' + (rawEmb as any[]).length : 'NOT array', rawEmb);
+      }
+
+      const recognition = recognizeFace(embedding, faceEmbeddings);
+      console.log('[FaceVerifyPage] Recognition result:', recognition);
+
+      if (recognition.isAuthorized) {
+        await logThreatEvent({
+          user_id: user.id,
+          event_type: "face_match",
+          title: "Face Verified — Access Granted",
+          description: `Identity verified with ${(recognition.confidence * 100).toFixed(1)}% confidence. Distance: ${recognition.bestDistance?.toFixed(4)}.`,
+          severity: "low",
+          metadata: { confidence: recognition.confidence, pose: recognition.matchedPose, distance: recognition.bestDistance },
+        });
+        sessionStorage.setItem(FACE_VERIFIED_KEY, "1");
+        setPhase("authorized");
+      } else {
+        // Only log intruder event when comparison genuinely fails (not when embeddings are unreadable)
+        const [device, geo] = await Promise.all([getDeviceInfo(), getGeoInfo()]);
+        // Use bestDistance to determine threat level: very high distance = high threat
+        const dist = recognition.bestDistance ?? Infinity;
+        const threatLevel = dist > 0.9 ? "high" : "medium";
+        const confidenceScore = recognition.confidence;
+
+        await logIntruderEvent({
+          user_id: user.id,
+          photo_base64: img,
+          latitude: geo?.latitude ?? null,
+          longitude: geo?.longitude ?? null,
+          location_label: "Unknown location",
+          device_name: device.deviceName,
+          phone_model: device.phoneModel,
+          os_version: device.osVersion,
+          network_type: device.networkType,
+          wifi_status: device.wifiStatus,
+          bluetooth_status: device.bluetoothStatus,
+          battery_percentage: device.batteryPercentage,
+          charging_status: device.chargingStatus,
+          confidence_score: 1 - confidenceScore,
+          threat_level: threatLevel,
+        });
+        await logThreatEvent({
+          user_id: user.id,
+          event_type: "intruder_capture",
+          title: "Unrecognized Face — Access Denied",
+          description: `Unknown face at login. Best distance: ${dist.toFixed(4)} (threshold 0.6).`,
+          severity: threatLevel === "high" ? "high" : "medium",
+          metadata: { bestDistance: dist, confidence: confidenceScore },
+        });
+        await pushNotification({
+          user_id: user.id,
+          title: "Intruder Alert!",
+          message: "An unrecognized face attempted to access your vault. Evidence has been captured.",
+          type: "danger",
+        });
+        setPhase("intruder");
+      }
+    } catch (err) {
+      setError((err as Error).message);
+      setPhase("idle");
+    }
+  }
+
+  function togglePin() {
+    stopCam();
+    setPhase("pin");
+    setError(null);
+  }
+
+  function handlePinChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const val = e.target.value.replace(/\D/g, "");
+    if (val.length <= 6) setPin(val);
+    if (val.length === 6) {
+      if (val === DEFAULT_PIN) {
+        sessionStorage.setItem(FACE_VERIFIED_KEY, "1");
+        navigate("/app/dashboard", { replace: true });
+      } else {
+        setError("Invalid PIN. Please try again.");
+        setPin("");
+      }
     }
   }
 
@@ -236,10 +296,38 @@ export default function FaceVerifyPage() {
             {/* Idle placeholder */}
             {!active && phase === "idle" && (
               <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
-                <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-accent/15 text-accent">
-                  <ScanFace className="w-8 h-8" />
+                <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-accent/15 text-accent shadow-inner">
+                  <ScanFace className="w-8 h-8 animate-pulse" />
                 </div>
-                <p className="text-sm text-muted">Camera is off</p>
+                <p className="text-sm text-muted">Ready for scan</p>
+              </div>
+            )}
+
+            {/* PIN Entry overlay */}
+            {phase === "pin" && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center bg-base-surface">
+                <div className="text-center mb-6 max-w-[200px]">
+                  <h3 className="text-xl text-white font-bold mb-2">Enter PIN</h3>
+                  <p className="text-xs text-muted">A valid master PIN bypasses the recognition layer.</p>
+                </div>
+                <div className="flex gap-2">
+                  {[...Array(6)].map((_, i) => (
+                    <div 
+                      key={i}
+                      className={`w-10 h-12 rounded-xl flex items-center justify-center text-xl font-bold border-2 transition-all ${pin.length > i ? 'border-accent bg-accent/20 text-white shadow-[0_0_15px_rgba(var(--color-accent),0.3)]' : 'border-base-border bg-base-elevated text-transparent'}`}
+                    >
+                      {pin.length > i ? '•' : ''}
+                    </div>
+                  ))}
+                </div>
+                <input
+                  type="password"
+                  value={pin}
+                  onChange={handlePinChange}
+                  autoFocus
+                  className="absolute opacity-0 w-full h-full cursor-text"
+                  maxLength={6}
+                />
               </div>
             )}
 
@@ -375,9 +463,32 @@ export default function FaceVerifyPage() {
                 >
                   Try Again
                 </button>
+                <button
+                  onClick={togglePin}
+                  className="w-full flex items-center justify-center gap-2 py-2 px-4 text-accent text-sm font-medium hover:underline transition-all mt-2"
+                >
+                  Use Backup PIN
+                </button>
+              </motion.div>
+            )}
+
+            {phase === "pin" && (
+              <motion.div key="pin-btns" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                <button
+                  onClick={retry}
+                  className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl border border-base-border text-muted-light text-sm hover:text-white hover:bg-base-elevated transition-all"
+                >
+                  Back to Face Scan
+                </button>
               </motion.div>
             )}
           </AnimatePresence>
+
+          {(phase === "idle" || phase === "scanning") && (
+             <div className="mt-4 pt-4 border-t border-base-border/50 text-center">
+                 <button onClick={togglePin} className="text-xs text-muted hover:text-accent transition-colors font-medium">Having Trouble? Use Backup PIN</button>
+             </div>
+          )}
 
           {/* Info footer */}
           <p className="text-center text-xs text-muted-faint pt-1">

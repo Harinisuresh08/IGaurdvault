@@ -68,63 +68,73 @@ export default function FaceRecognizePage() {
     }
     const img = await captureFromVideo(videoRef.current, 320);
     setCapturedImg(img);
-    const embedding = generateEmbedding(img);
-    const recognition = recognizeFace(embedding, faceEmbeddings);
-    setResult(recognition);
+    
+    try {
+      const embedding = await generateEmbedding(img);
+      if (!embedding) {
+        throw new Error("No face detected in the frame. Please align your face.");
+      }
+      
+      const recognition = recognizeFace(embedding, faceEmbeddings);
+      setResult(recognition);
 
-    if (recognition.isAuthorized) {
-      await logThreatEvent({
-        user_id: user.id,
-        event_type: "login_success",
-        title: "Authorized face recognized",
-        description: `Identity verified with ${(recognition.confidence * 100).toFixed(1)}% confidence.`,
-        severity: "low",
-        metadata: { confidence: recognition.confidence, pose: recognition.matchedPose },
-      });
-      setPhase("result");
-    } else {
-      // Intruder detection flow
-      const [device, geo] = await Promise.all([getDeviceInfo(), getGeoInfo()]);
-      const loc = geo
-        ? isLocationTrusted(geo.latitude, geo.longitude, trustedLocations)
-        : { trusted: false, nearest: undefined };
-      const threatLevel = recognition.confidence < 0.3 ? "high" : "medium";
-      const confidenceScore = 1 - recognition.confidence;
-      await logIntruderEvent({
-        user_id: user.id,
-        photo_base64: img,
-        latitude: geo?.latitude ?? null,
-        longitude: geo?.longitude ?? null,
-        location_label: loc.nearest
-          ? `${loc.nearest.label} area`
-          : "Unknown location",
-        device_name: device.deviceName,
-        phone_model: device.phoneModel,
-        os_version: device.osVersion,
-        network_type: device.networkType,
-        wifi_status: device.wifiStatus,
-        bluetooth_status: device.bluetoothStatus,
-        battery_percentage: device.batteryPercentage,
-        charging_status: device.chargingStatus,
-        confidence_score: confidenceScore,
-        threat_level: threatLevel,
-      });
-      await logThreatEvent({
-        user_id: user.id,
-        event_type: "intruder_capture",
-        title: "Intruder detected",
-        description: `Unknown face captured with ${(confidenceScore * 100).toFixed(1)}% anomaly confidence. Evidence stored.`,
-        severity: threatLevel === "high" ? "high" : "medium",
-        metadata: { confidence: confidenceScore, location: loc.nearest?.label },
-      });
-      await pushNotification({
-        user_id: user.id,
-        title: "Intruder Alert",
-        message: "An unknown face was detected. Evidence has been captured and stored.",
-        type: "danger",
-      });
-      await loadAll(user.id);
-      setPhase("intruder");
+      if (recognition.isAuthorized) {
+        await logThreatEvent({
+          user_id: user.id,
+          event_type: "login_success",
+          title: "Authorized face recognized",
+          description: `Identity verified with ${(recognition.confidence * 100).toFixed(1)}% confidence.`,
+          severity: "low",
+          metadata: { confidence: recognition.confidence, pose: recognition.matchedPose },
+        });
+        setPhase("result");
+      } else {
+        // Intruder detection flow
+        const [device, geo] = await Promise.all([getDeviceInfo(), getGeoInfo()]);
+        const loc = geo
+          ? isLocationTrusted(geo.latitude, geo.longitude, trustedLocations)
+          : { trusted: false, nearest: undefined };
+        const threatLevel = recognition.confidence < 0.3 ? "high" : "medium";
+        const confidenceScore = 1 - recognition.confidence;
+        await logIntruderEvent({
+          user_id: user.id,
+          photo_base64: img,
+          latitude: geo?.latitude ?? null,
+          longitude: geo?.longitude ?? null,
+          location_label: loc.nearest
+            ? `${loc.nearest.label} area`
+            : "Unknown location",
+          device_name: device.deviceName,
+          phone_model: device.phoneModel,
+          os_version: device.osVersion,
+          network_type: device.networkType,
+          wifi_status: device.wifiStatus,
+          bluetooth_status: device.bluetoothStatus,
+          battery_percentage: device.batteryPercentage,
+          charging_status: device.chargingStatus,
+          confidence_score: confidenceScore,
+          threat_level: threatLevel,
+        });
+        await logThreatEvent({
+          user_id: user.id,
+          event_type: "intruder_capture",
+          title: "Intruder detected",
+          description: `Unknown face captured with ${(confidenceScore * 100).toFixed(1)}% anomaly confidence. Evidence stored.`,
+          severity: threatLevel === "high" ? "high" : "medium",
+          metadata: { confidence: confidenceScore, location: loc.nearest?.label },
+        });
+        await pushNotification({
+          user_id: user.id,
+          title: "Intruder Alert",
+          message: "An unknown face was detected. Evidence has been captured and stored.",
+          type: "danger",
+        });
+        await loadAll(user.id);
+        setPhase("intruder");
+      }
+    } catch (err) {
+      setError((err as Error).message);
+      setPhase("idle");
     }
   }
 
