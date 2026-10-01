@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, Plus, Star, Trash2, Lock, Clock as Unlock, FolderPlus, Folder, LayoutGrid, List as ListIcon, Eye, EyeOff, Tag, Shield, TriangleAlert as AlertTriangle, ChevronDown, Calendar, Sparkles, KeyRound, FileText, BookMarked, CreditCard, IdCard, Car, HeartPulse, Award, StickyNote, Image as ImageIcon, Video } from "lucide-react";
+import { Search, Plus, Star, Trash2, Lock, Clock as Unlock, FolderPlus, Folder, LayoutGrid, List as ListIcon, Eye, EyeOff, Tag, Shield, TriangleAlert as AlertTriangle, ChevronDown, Calendar, Sparkles, KeyRound, FileText, BookMarked, CreditCard, IdCard, Car, HeartPulse, Award, StickyNote, Image as ImageIcon, Video, Upload, X as XIcon, Paperclip } from "lucide-react";
 import { useAuthStore } from "@/stores/authStore";
 import { useDataStore } from "@/stores/dataStore";
 import {
@@ -411,7 +411,9 @@ export default function VaultPage() {
         folders={vaultFolders}
         onSave={async (payload) => {
           if (!userId) return;
-          await createVaultItem(userId, payload);
+          const newItem = await createVaultItem(userId, payload);
+          // Optimistically add to store so UI updates instantly
+          useDataStore.setState((s) => ({ vaultItems: [newItem, ...s.vaultItems] }));
           if (userId) {
             void logSecurityEvent({
               user_id: userId,
@@ -432,7 +434,9 @@ export default function VaultPage() {
         onClose={() => setShowFolder(false)}
         onCreate={async (name, color) => {
           if (!userId) return;
-          await createFolder(userId, name, "folder", color, null);
+          const newFolder = await createFolder(userId, name, "folder", color, null);
+          // Optimistically add to store so UI updates instantly
+          useDataStore.setState((s) => ({ vaultFolders: [...s.vaultFolders, newFolder].sort((a, b) => a.name.localeCompare(b.name)) }));
           if (userId) {
             void logSecurityEvent({
               user_id: userId,
@@ -648,7 +652,8 @@ function AddItemModal({
     title: string; category: VaultCategory; folder_id: string | null;
     card_number: string | null; card_holder: string | null; card_expiry: string | null;
     card_cvv: string | null; card_type: string | null; note_text: string | null;
-    file_name: string | null; tags: string[]; is_favorite: boolean; expires_at: string | null;
+    file_name: string | null; file_data: string | null; file_mime_type: string | null;
+    file_size_bytes: number | null; tags: string[]; is_favorite: boolean; expires_at: string | null;
   }) => Promise<void>;
 }) {
   const [title, setTitle] = useState("");
@@ -670,7 +675,11 @@ function AddItemModal({
 
   // file / generic fields
   const [fileName, setFileName] = useState("");
+  const [fileData, setFileData] = useState<string | null>(null);
+  const [fileMime, setFileMime] = useState<string | null>(null);
+  const [fileSize, setFileSize] = useState<number | null>(null);
   const [expiryDate, setExpiryDate] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -679,9 +688,28 @@ function AddItemModal({
     if (!open) {
       setTitle(""); setCategory("document"); setFolderId(""); setTags(""); setFavorite(false);
       setCardNumber(""); setCardHolder(""); setCardExpiry(""); setCardCvv(""); setCardType("Visa"); setShowCvv(false);
-      setNoteText(""); setFileName(""); setExpiryDate(""); setError(""); setSaving(false);
+      setNoteText(""); setFileName(""); setFileData(null); setFileMime(null); setFileSize(null);
+      setExpiryDate(""); setError(""); setSaving(false);
     }
   }, [open]);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 10 * 1024 * 1024) { setError("File is too large. Maximum size is 10 MB."); return; }
+    setFileName(file.name);
+    setFileMime(file.type || "application/octet-stream");
+    setFileSize(file.size);
+    setError("");
+    const reader = new FileReader();
+    reader.onload = () => { setFileData(reader.result as string); };
+    reader.readAsDataURL(file);
+  };
+
+  const clearFile = () => {
+    setFileName(""); setFileData(null); setFileMime(null); setFileSize(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
 
   const isCard = category === "card";
   const isNote = category === "note";
@@ -694,7 +722,7 @@ function AddItemModal({
       if (!cardHolder.trim()) { setError("Please enter the card holder name."); return; }
     }
     if (isNote && !noteText.trim()) { setError("Please enter note text."); return; }
-    if (!isCard && !isNote && !fileName.trim()) { setError("Please enter a file name."); return; }
+    if (!isCard && !isNote && !fileData) { setError("Please choose a file to upload."); return; }
 
     setSaving(true);
     try {
@@ -709,7 +737,10 @@ function AddItemModal({
         card_cvv: isCard ? cardCvv.trim() : null,
         card_type: isCard ? cardType : null,
         note_text: isNote ? noteText.trim() : null,
-        file_name: !isCard && !isNote ? fileName.trim() : null,
+        file_name: !isCard && !isNote ? fileName : null,
+        file_data: !isCard && !isNote ? fileData : null,
+        file_mime_type: !isCard && !isNote ? fileMime : null,
+        file_size_bytes: !isCard && !isNote ? fileSize : null,
         tags: tagsArr,
         is_favorite: favorite,
         expires_at: !isCard && expiryDate ? new Date(expiryDate).toISOString() : null,
@@ -835,7 +866,35 @@ function AddItemModal({
         {/* ── File / generic fields ── */}
         {!isCard && !isNote && (
           <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} className="space-y-4 overflow-hidden">
-            <Input label="File name" placeholder="e.g. passport_scan.pdf" value={fileName} onChange={(e) => setFileName(e.target.value)} icon={<FileText className="w-4 h-4" />} />
+            {/* File picker */}
+            <div>
+              <label className="block text-xs font-medium text-muted-light mb-1.5">File <span className="text-danger">*</span></label>
+              <input ref={fileInputRef} type="file" className="hidden" onChange={handleFileChange} />
+              {!fileData ? (
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="w-full flex flex-col items-center justify-center gap-2 border-2 border-dashed border-base-border hover:border-accent/50 rounded-xl py-8 transition-all group"
+                >
+                  <div className="w-10 h-10 rounded-xl bg-accent-soft flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <Upload className="w-5 h-5 text-accent" />
+                  </div>
+                  <span className="text-sm text-muted-light">Click to choose a file</span>
+                  <span className="text-xs text-muted">Any file type · Max 10 MB</span>
+                </button>
+              ) : (
+                <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-accent-soft border border-accent/30">
+                  <Paperclip className="w-5 h-5 text-accent flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-white truncate">{fileName}</p>
+                    <p className="text-xs text-muted">{fileMime} · {fileSize ? (fileSize / 1024).toFixed(1) + " KB" : ""}</p>
+                  </div>
+                  <button type="button" onClick={clearFile} className="text-muted hover:text-danger transition-colors flex-shrink-0">
+                    <XIcon className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
+            </div>
             <div>
               <label className="block text-xs font-medium text-muted-light mb-1.5">Expiry date (optional)</label>
               <Input type="date" value={expiryDate} onChange={(e) => setExpiryDate(e.target.value)} icon={<Calendar className="w-4 h-4" />} />

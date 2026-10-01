@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
   ArrowLeft, Lock, Star, Trash2, Eye, EyeOff, Copy, Clock,
-  Tag, FileText, CreditCard, StickyNote, Calendar, Shield,
+  Tag, FileText, CreditCard, StickyNote, Calendar, Shield, Download, ExternalLink, Paperclip,
 } from "lucide-react";
 import { useAuthStore } from "@/stores/authStore";
 import { useDataStore } from "@/stores/dataStore";
@@ -72,6 +72,33 @@ export default function VaultItemPage() {
       title: "Vault Item Deleted", description: `Deleted: ${item.title}`,
     });
     navigate("/app/vault");
+  };
+
+  // Opens stored base64 file in a new tab
+  const openFile = () => {
+    if (!item?.file_data) return;
+    // file_data is stored as a data URL (data:<mime>;base64,...)
+    const win = window.open();
+    if (!win) return;
+    if (item.file_mime_type?.startsWith("image/") || item.file_mime_type === "application/pdf") {
+      win.document.write(`<html><body style="margin:0;background:#000"><iframe src="${item.file_data}" style="width:100%;height:100vh;border:none"></iframe></body></html>`);
+    } else {
+      // For other types, trigger a download via anchor
+      const a = win.document.createElement("a");
+      a.href = item.file_data;
+      a.download = item.file_name ?? "file";
+      win.document.body.appendChild(a);
+      a.click();
+      win.close();
+    }
+  };
+
+  const downloadFile = () => {
+    if (!item?.file_data) return;
+    const a = document.createElement("a");
+    a.href = item.file_data;
+    a.download = item.file_name ?? "file";
+    a.click();
   };
 
   if (!item) {
@@ -160,6 +187,32 @@ export default function VaultItemPage() {
           )}
           {item.file_name && <StaticField label="File Name" value={item.file_name} />}
           {item.file_size_bytes != null && <StaticField label="File Size" value={`${(item.file_size_bytes / 1024).toFixed(1)} KB`} />}
+
+          {/* Open / Download file */}
+          {item.file_data && (
+            <Card className="border-accent/20">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-10 h-10 rounded-xl bg-accent-soft flex items-center justify-center flex-shrink-0">
+                  <Paperclip className="w-5 h-5 text-accent" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-white truncate">{item.file_name ?? "Attached file"}</p>
+                  <p className="text-xs text-muted">
+                    {item.file_mime_type ?? "Unknown type"}
+                    {item.file_size_bytes != null && ` · ${(item.file_size_bytes / 1024).toFixed(1)} KB`}
+                  </p>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <Button size="sm" icon={<ExternalLink className="w-4 h-4" />} onClick={openFile} className="flex-1">
+                  Open File
+                </Button>
+                <Button size="sm" variant="secondary" icon={<Download className="w-4 h-4" />} onClick={downloadFile} className="flex-1">
+                  Download
+                </Button>
+              </div>
+            </Card>
+          )}
           {item.tags.length > 0 && (
             <Card>
               <p className="text-xs text-muted mb-2 uppercase tracking-wider flex items-center gap-1"><Tag className="w-3 h-3" /> Tags</p>

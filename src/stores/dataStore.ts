@@ -215,6 +215,26 @@ export const useDataStore = create<DataState>((set, get) => ({
         {
           event: "*",
           schema: "public",
+          table: "vault_folders",
+          filter: `user_id=eq.${userId}`,
+        },
+        (payload) => {
+          const folders = get().vaultFolders;
+          if (payload.eventType === "INSERT") {
+            set({ vaultFolders: [...folders, payload.new as VaultFolder].sort((a, b) => a.name.localeCompare(b.name)) });
+          } else if (payload.eventType === "UPDATE") {
+            set({ vaultFolders: folders.map((f) => f.id === (payload.new as VaultFolder).id ? (payload.new as VaultFolder) : f) });
+          } else if (payload.eventType === "DELETE") {
+            set({ vaultFolders: folders.filter((f) => f.id !== (payload.old as VaultFolder).id) });
+          }
+        }
+      )
+
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
           table: "vault_items",
           filter: `user_id=eq.${userId}`,
         },
